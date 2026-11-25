@@ -10,10 +10,13 @@ With Docker (the SQLite database persists in `./data`):
 ```bash
 docker compose build
 docker compose run --rm evaluator init-db
+docker compose run --rm evaluator fetch-cards
 docker compose run --rm evaluator seed
 docker compose run --rm evaluator evaluate /app/data/my_deck.txt
 docker compose run --rm -T evaluator generate OP01-001 > data/generated_deck.txt
 ```
+
+`fetch-cards` downloads the card list from [optcgapi.com](https://optcgapi.com/documentation) into `data/optcgapi/`, and `seed` loads that cache into SQLite, so re-seeding never hits the API. Rerun `fetch-cards` to pick up new sets. Each seed writes `data/optcgapi/import_report.csv` listing where printings of a card disagreed and which value was kept, plus the subtypes that were inferred.
 
 To generate and evaluate in one run, use `build`, which prints `{"decklist": ..., "evaluation": ...}` as JSON:
 

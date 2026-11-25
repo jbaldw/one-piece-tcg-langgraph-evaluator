@@ -6,6 +6,7 @@ import typer
 
 from op_tcg_evaluator.config import get_settings
 from op_tcg_evaluator.db import init_db
+from op_tcg_evaluator.db.optcgapi import cache_dir, fetch_all
 from op_tcg_evaluator.db.seed import seed_db
 from op_tcg_evaluator.graph import (
     EvaluatorState,
@@ -28,9 +29,18 @@ def init_db_command() -> None:
     typer.echo(f"Initialized database at {db_path}")
 
 
+@app.command("fetch-cards")
+def fetch_cards() -> None:
+    """Download the official card list from optcgapi.com into the data directory."""
+    dest = cache_dir(get_settings().db_path)
+    counts = fetch_all(dest)
+    summary = ", ".join(f"{n} {source}" for source, n in counts.items())
+    typer.echo(f"Saved {summary} printings to {dest}")
+
+
 @app.command()
 def seed() -> None:
-    """Seed the database with card data."""
+    """Load the cached card list (from fetch-cards) into the database."""
     seed_db(get_settings().db_path)
 
 
