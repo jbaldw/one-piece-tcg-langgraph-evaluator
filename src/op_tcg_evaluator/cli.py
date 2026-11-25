@@ -17,6 +17,7 @@ from op_tcg_evaluator.graph import (
     build_pipeline_graph,
 )
 from op_tcg_evaluator.models import CARD_ID_PATTERN
+from op_tcg_evaluator.rules import CardLookup, leader_problem
 
 app = typer.Typer(help="Evaluate One Piece TCG decklists.", no_args_is_help=True)
 
@@ -65,8 +66,8 @@ def generate(
     leader_id: Annotated[str, typer.Argument(help="Leader card ID, e.g. OP01-001.")],
 ) -> None:
     """Have Claude build a 50-card deck for a leader and print it as a decklist file."""
-    _require_card_id(leader_id)
-    graph = build_generator_graph()
+    cards = _require_leader(leader_id)
+    graph = build_generator_graph(cards=cards)
     result = GeneratorState.model_validate(graph.invoke(GeneratorState(leader_id=leader_id)))
     if result.decklist is None:
         typer.echo(f"error: no valid deck after {result.attempts} attempts", err=True)
@@ -81,8 +82,8 @@ def build(
     leader_id: Annotated[str, typer.Argument(help="Leader card ID, e.g. OP01-001.")],
 ) -> None:
     """Generate a deck for a leader, evaluate it, and print both as one JSON object."""
-    _require_card_id(leader_id)
-    graph = build_pipeline_graph()
+    cards = _require_leader(leader_id)
+    graph = build_pipeline_graph(cards=cards)
     result = PipelineState.model_validate(graph.invoke(PipelineState(leader_id=leader_id)))
     if result.evaluation is None:
         if result.decklist is None:
@@ -95,8 +96,15 @@ def build(
     typer.echo(result.model_dump_json(include={"decklist", "evaluation"}, indent=2))
 
 
-def _require_card_id(card_id: str) -> None:
-    # Checked before any graph runs so a typo fails immediately instead of costing an API call.
+def _require_leader(card_id: str) -> CardLookup:
+    # Checked before any graph runs so a typo or non-leader fails immediately instead of
+    # costing an API call.
     if not re.fullmatch(CARD_ID_PATTERN, card_id):
         typer.echo(f"error: {card_id!r} is not a card ID like OP01-001", err=True)
         raise typer.Exit(code=1)
+    cards = CardLookup(get_settings().db_path)
+    problem = leader_problem(card_id, cards.get_many([card_id]))
+    if problem:
+        typer.echo(f"error: {problem}", err=True)
+        raise typer.Exit(code=1)
+    return cards

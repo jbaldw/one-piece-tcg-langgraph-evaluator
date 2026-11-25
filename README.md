@@ -24,7 +24,7 @@ To generate and evaluate in one run, use `build`, which prints `{"decklist": ...
 docker compose run --rm evaluator build OP01-001
 ```
 
-`generate` asks Claude for a 50-card deck for the given leader, retrying up to 3 times with the validation errors fed back, and prints it in the decklist format `evaluate` reads.
+`generate` asks Claude for a 50-card deck for the given leader, retrying up to 3 times with the validation errors fed back, and prints it in the decklist format `evaluate` reads. The prompt includes the leader's stats and every card in the seeded database that shares the leader's color, and each draft is checked against that database (card exists, is not a Leader, matches the leader's color). `evaluate` runs the same checks before scoring, so both commands need a seeded database.
 
 Locally with [uv](https://docs.astral.sh/uv/):
 

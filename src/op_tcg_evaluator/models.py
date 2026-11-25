@@ -24,6 +24,15 @@ class Card(BaseModel):
     power: int | None = Field(default=None, ge=0)
     counter: int | None = Field(default=None, ge=0)
     set_code: str | None = None
+    life: int | None = Field(default=None, ge=0)
+    attribute: str | None = None
+    card_text: str | None = None
+    types: list[str] = Field(default_factory=list)
+
+    @property
+    def colors(self) -> list[str]:
+        # Multicolor cards are stored as "Red/Green"; see db/normalize.py.
+        return self.color.split("/")
 
 
 class DeckEntry(BaseModel):

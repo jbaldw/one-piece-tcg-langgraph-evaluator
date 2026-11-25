@@ -8,36 +8,36 @@ def _fake_evaluate(state: EvaluatorState) -> dict:
     return {"evaluation": FAKE_RESULT}
 
 
-def _run(raw: str) -> EvaluatorState:
-    graph = build_graph(evaluate_node=_fake_evaluate)
+def _run(raw: str, cards) -> EvaluatorState:
+    graph = build_graph(evaluate_node=_fake_evaluate, cards=cards)
     return EvaluatorState.model_validate(graph.invoke(EvaluatorState(raw_decklist=raw)))
 
 
-def test_valid_decklist_reaches_evaluate():
+def test_valid_decklist_reaches_evaluate(cards):
     lines = ["OP01-001"] + [f"4xOP01-{i:03d}" for i in range(2, 14)] + ["2xOP01-014"]
-    result = _run("\n".join(lines))
+    result = _run("\n".join(lines), cards)
     assert result.errors == []
     assert result.evaluation == FAKE_RESULT
 
 
-def test_to_text_round_trips_through_parser():
+def test_to_text_round_trips_through_parser(cards):
     deck = Decklist(
         leader_id="OP01-001",
         cards=[{"card_id": f"OP01-{i:03d}", "quantity": 4} for i in range(2, 14)]
         + [{"card_id": "OP01-014", "quantity": 2}],
     )
-    result = _run(deck.to_text())
+    result = _run(deck.to_text(), cards)
     assert result.errors == []
     assert result.decklist == deck
 
 
-def test_unparseable_line_stops_graph():
-    result = _run("OP01-001\nnot a card line")
+def test_unparseable_line_stops_graph(cards):
+    result = _run("OP01-001\nnot a card line", cards)
     assert result.evaluation is None
     assert "could not parse" in result.errors[0]
 
 
-def test_invalid_deck_stops_graph():
-    result = _run("OP01-001\n4xOP01-002")
+def test_invalid_deck_stops_graph(cards):
+    result = _run("OP01-001\n4xOP01-002", cards)
     assert result.evaluation is None
     assert any("50 cards" in e for e in result.errors)

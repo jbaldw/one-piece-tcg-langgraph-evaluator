@@ -31,34 +31,34 @@ def _fake_generator(replies: list[DeckDraft | None]):
     return node
 
 
-def _run(replies: list[DeckDraft | None]) -> GeneratorState:
-    graph = build_generator_graph(generate_node=_fake_generator(replies))
+def _run(replies: list[DeckDraft | None], cards) -> GeneratorState:
+    graph = build_generator_graph(generate_node=_fake_generator(replies), cards=cards)
     return GeneratorState.model_validate(graph.invoke(GeneratorState(leader_id=LEADER)))
 
 
-def test_valid_on_first_try():
-    result = _run([VALID])
+def test_valid_on_first_try(cards):
+    result = _run([VALID], cards)
     assert result.attempts == 1
     assert result.decklist is not None
     assert result.errors == []
 
 
-def test_valid_on_third_try():
-    result = _run([TOO_SMALL, None, VALID])
+def test_valid_on_third_try(cards):
+    result = _run([TOO_SMALL, None, VALID], cards)
     assert result.attempts == 3
     assert result.decklist is not None
 
 
-def test_gives_up_after_three_tries():
+def test_gives_up_after_three_tries(cards):
     # A 4th reply is queued to prove the graph never asks for it.
-    result = _run([TOO_SMALL, TOO_SMALL, TOO_SMALL, VALID])
+    result = _run([TOO_SMALL, TOO_SMALL, TOO_SMALL, VALID], cards)
     assert result.attempts == 3
     assert result.decklist is None
     assert any("50 cards" in e for e in result.errors)
 
 
-def test_wrong_leader_is_rejected():
-    result = _run([_draft(*[4] * 12, 2, leader="OP02-001")] * 3)
+def test_wrong_leader_is_rejected(cards):
+    result = _run([_draft(*[4] * 12, 2, leader="OP02-001")] * 3, cards)
     assert result.decklist is None
     assert any("leader_id must be OP01-001" in e for e in result.errors)
 

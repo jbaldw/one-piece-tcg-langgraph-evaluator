@@ -26,7 +26,7 @@ def _fake_generator(replies: list[DeckDraft]):
     return node
 
 
-def _run(replies: list[DeckDraft]) -> tuple[PipelineState, list[EvaluatorState]]:
+def _run(replies: list[DeckDraft], cards) -> tuple[PipelineState, list[EvaluatorState]]:
     evaluated: list[EvaluatorState] = []
 
     def fake_evaluate(state: EvaluatorState) -> dict:
@@ -34,14 +34,14 @@ def _run(replies: list[DeckDraft]) -> tuple[PipelineState, list[EvaluatorState]]
         return {"evaluation": FAKE_RESULT}
 
     graph = build_pipeline_graph(
-        generate_node=_fake_generator(replies), evaluate_node=fake_evaluate
+        generate_node=_fake_generator(replies), evaluate_node=fake_evaluate, cards=cards
     )
     result = PipelineState.model_validate(graph.invoke(PipelineState(leader_id=LEADER)))
     return result, evaluated
 
 
-def test_generates_then_evaluates():
-    result, evaluated = _run([TOO_SMALL, VALID])
+def test_generates_then_evaluates(cards):
+    result, evaluated = _run([TOO_SMALL, VALID], cards)
     assert result.generation_attempts == 2
     assert result.decklist.to_text() == VALID.to_text()
     assert result.evaluation == FAKE_RESULT
@@ -50,8 +50,8 @@ def test_generates_then_evaluates():
     assert evaluated[0].decklist.to_text() == VALID.to_text()
 
 
-def test_failed_generation_skips_evaluation():
-    result, evaluated = _run([TOO_SMALL] * 3)
+def test_failed_generation_skips_evaluation(cards):
+    result, evaluated = _run([TOO_SMALL] * 3, cards)
     assert result.generation_attempts == 3
     assert result.decklist is None
     assert result.evaluation is None
