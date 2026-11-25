@@ -144,6 +144,34 @@ class ImportReport:
     conflicts: list[Conflict] = field(default_factory=list)
     skipped: list[tuple[str, str]] = field(default_factory=list)
     guessed_types: set[str] = field(default_factory=set)
+    # (card_id, field, reason) for text that looks like it is aimed at an LLM.
+    suspicious: list[tuple[str, str, str]] = field(default_factory=list)
+
+
+# Card names, types, and effect text are copied into generation prompts, so text that
+# reads like instructions to a model is flagged at import. Checked against the 2026-11-25
+# data: no real card matches, so a hit means the source data changed and needs a look.
+_SUSPICIOUS_TEXT = re.compile(
+    r"ignore|disregard|instruction|system prompt|assistant|\bprompt\b|\bclaude\b|\bllm\b"
+    r"|\bAI\b|\bjson\b|https?://|www\.|[<>`]",
+    re.IGNORECASE,
+)
+# Roughly 1.2x the longest real value of each field in the 2026-11-25 data.
+_MAX_LENGTHS = {"name": 100, "types": 100, "card_text": 600}
+
+
+def find_suspicious_text(card: "CanonicalCard") -> list[tuple[str, str, str]]:
+    fields = {"name": card.name, "types": "/".join(card.types), "card_text": card.card_text}
+    found = []
+    for name, value in fields.items():
+        if not value:
+            continue
+        if len(value) > _MAX_LENGTHS[name]:
+            found.append((card.id, name, f"{len(value)} characters (limit {_MAX_LENGTHS[name]})"))
+        match = _SUSPICIOUS_TEXT.search(value)
+        if match:
+            found.append((card.id, name, f"contains {match.group(0)!r}"))
+    return found
 
 
 def _is_base_printing(card_id: str, row: dict) -> bool:
@@ -313,4 +341,5 @@ def canonicalize(
                 **values,
             )
         )
+        report.suspicious.extend(find_suspicious_text(cards[-1]))
     return cards, report

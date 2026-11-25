@@ -1,5 +1,6 @@
 import csv
 import sqlite3
+import sys
 from pathlib import Path
 
 from op_tcg_evaluator.db.connection import get_connection, init_db
@@ -108,6 +109,8 @@ def write_report(report: ImportReport, path: Path) -> None:
             writer.writerow([card_id, "SKIPPED", reason, ""])
         for t in sorted(report.guessed_types):
             writer.writerow(["", "GUESSED_TYPE", t, ""])
+        for card_id, field, reason in report.suspicious:
+            writer.writerow([card_id, "SUSPICIOUS_TEXT", field, reason])
 
 
 def seed_db(db_path: Path) -> None:
@@ -125,3 +128,10 @@ def seed_db(db_path: Path) -> None:
         f"{len(report.conflicts)} field conflicts resolved, {len(report.skipped)} cards skipped, "
         f"{len(report.guessed_types)} types inferred. Details: {report_path}"
     )
+    if report.suspicious:
+        # This text reaches generation prompts, so it gets its own line instead of a count.
+        print(
+            f"WARNING: {len(report.suspicious)} card fields look like they contain text aimed "
+            f"at an LLM (SUSPICIOUS_TEXT rows in {report_path}). Review them before generating.",
+            file=sys.stderr,
+        )
