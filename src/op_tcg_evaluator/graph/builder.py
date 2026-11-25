@@ -31,7 +31,7 @@ def build_graph(
     graph = StateGraph(EvaluatorState)
     graph.add_node("parse_decklist", nodes.parse_decklist)
     graph.add_node("validate_deck", partial(nodes.validate_deck, cards=cards))
-    graph.add_node("evaluate", evaluate_node or nodes.evaluate)
+    graph.add_node("evaluate", evaluate_node or partial(nodes.evaluate, cards=cards))
 
     graph.add_edge(START, "parse_decklist")
     graph.add_conditional_edges(

@@ -37,6 +37,25 @@ class CardLookup:
         cards = self._query(f"c.id IN ({', '.join('?' * len(ids))})", ids)
         return {card.id: card for card in cards}
 
+    def image_urls(self, card_ids: Iterable[str]) -> dict[str, str]:
+        """One image URL per card, preferring the base printing over parallels and reprints."""
+        ids = list(dict.fromkeys(card_ids))
+        if not ids:
+            return {}
+        with closing(get_connection(self.db_path)) as conn:
+            rows = conn.execute(
+                f"""
+                SELECT card_id, image_url FROM card_printings
+                WHERE card_id IN ({", ".join("?" * len(ids))}) AND image_url != ''
+                ORDER BY card_id, image_id != card_id, image_id
+                """,
+                ids,
+            ).fetchall()
+        urls: dict[str, str] = {}
+        for card_id, url in rows:
+            urls.setdefault(card_id, url)
+        return urls
+
     def legal_pool(self, leader: Card) -> list[Card]:
         """Every non-Leader card whose color is one of the leader's colors."""
         colors = leader.colors
